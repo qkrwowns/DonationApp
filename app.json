@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "839b4057-4b73-474e-8534-19c62889451e"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.wowns.donationapp"
+    }
+  }
+}
