@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 actix-web = "4"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-argon2 = "0.4"
-jsonwebtoken = "8"
+serde_json = "1.0"  # To read/write JSON files
+argon2 = "0.3"
+rand_core = "0.6"
+tokio = { version = "1", features = ["fs"] }  # For async file operations

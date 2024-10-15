@@ -9,24 +9,28 @@ const CreateAccountScreen = ({ navigation }) => {
   // Dynamic backend URL depending on platform and environment
   const getBackendUrl = () => {
     if (Platform.OS === 'ios') {
-      return 'http://192.168.75.126:8080';  // Use localhost for iOS simulator
+      return 'http://192.168.75.126:8080';  // IP for local backend
     } else {
-      return 'http://192.168.75.126:8080';   // Use 10.0.2.2 for Android emulator
+      return 'http://192.168.75.126:8080';   // Change this for Android as needed
     }
   };
 
+  // Handle account creation
   const handleCreateAccount = async () => {
+    // Check if all fields are filled
     if (!userId || !password || !confirmPassword) {
       Alert.alert('Error', 'All fields are required.');
       return;
     }
 
+    // Check if passwords match
     if (password !== confirmPassword) {
       Alert.alert('Error', 'Passwords do not match.');
       return;
     }
 
     try {
+      // Send signup request to backend
       const response = await fetch(`${getBackendUrl()}/signup`, {
         method: 'POST',
         headers: {
@@ -38,9 +42,10 @@ const CreateAccountScreen = ({ navigation }) => {
         }),
       });
 
+      // Handle response from the backend
       if (response.ok) {
         Alert.alert('Success', 'Account created successfully!');
-        navigation.navigate('Login');  // Navigate back to the login screen
+        navigation.navigate('Login');  // Navigate to login screen
       } else {
         const errorMessage = await response.text();
         Alert.alert('Error', errorMessage || 'Failed to create account.');
@@ -53,7 +58,7 @@ const CreateAccountScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Create Your Account</Text>alert
+      <Text style={styles.title}>Create Your Account</Text>
       <Text style={styles.userId}>ID</Text>
       <TextInput
         style={styles.idInput}
@@ -71,7 +76,7 @@ const CreateAccountScreen = ({ navigation }) => {
         onChangeText={setPassword}
         secureTextEntry
       />
-      <Text style={styles.passwordConfirm}>Confirm Passworfd</Text>
+      <Text style={styles.passwordConfirm}>Confirm Password</Text>
       <TextInput
         style={styles.passwordConfirmInput}
         placeholder="Confirm your password"

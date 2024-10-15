@@ -8,9 +8,9 @@ const LoginScreen = ({ navigation }) => {
   // Dynamic backend URL depending on platform and environment
   const getBackendUrl = () => {
     if (Platform.OS === 'ios') {
-      return 'http://192.168.75.126:8080';  // Use localhost for iOS simulator
+      return 'http://192.168.75.126:8080';
     } else {
-      return 'http://192.168.75.126:8080';   // Use 10.0.2.2 for Android emulator
+      return 'http://192.168.75.126:8080';
     }
   };
 
@@ -33,8 +33,8 @@ const LoginScreen = ({ navigation }) => {
       });
 
       if (response.ok) {
-        Alert.alert('Success', 'Login successful');
-        navigation.navigate('Home');  // Navigate to the Home screen on success
+        //Alert.alert('Success', 'Login successful');
+        navigation.navigate('Home');  // Navigate to Home on success
       } else {
         const errorMessage = await response.text();
         Alert.alert('Login failed', errorMessage || 'Invalid credentials');
@@ -68,7 +68,7 @@ const LoginScreen = ({ navigation }) => {
       <TouchableOpacity style={styles.button} onPress={handleLogin}>
         <Text style={styles.buttonText}>Login</Text>
       </TouchableOpacity>
-      <Text style={styles.noAccount}>Don't have an account? </Text>
+      <Text style={styles.noAccount}>Don't have an account?</Text>
       <TouchableOpacity onPress={() => navigation.navigate('CreateAccount')}>
         <Text style={styles.signUpText}>Sign Up</Text>
       </TouchableOpacity>
@@ -78,7 +78,7 @@ const LoginScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: {
-    justifyContent: 'center',
+    //justifyContent: 'center',
     padding: 20,
     backgroundColor: '#F0F2F5',
   },

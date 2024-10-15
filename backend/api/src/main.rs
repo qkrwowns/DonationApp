@@ -1,9 +1,18 @@
 use actix_web::{web, App, HttpServer, HttpResponse, Responder, post};
-use serde::{Deserialize};
+use serde::{Deserialize, Serialize};
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use argon2::password_hash::{SaltString, rand_core::OsRng};
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::fs::{OpenOptions, File};
+use std::io::{Read, Write};
+use serde_json::{json, Value};
+
+#[derive(Debug, Deserialize, Serialize)]
+struct UserData {
+    username: String,
+    password_hash: String,
+}
 
 #[derive(Debug, Deserialize)]
 struct LoginData {
@@ -11,28 +20,56 @@ struct LoginData {
     password: String,
 }
 
-// This will store usernames and their corresponding password hashes
+// Shared application state containing user data file path
 struct AppState {
-    users: Mutex<HashMap<String, String>>,
+    user_data_file: Mutex<String>,  // File path for storing users
 }
 
-// Password hashing function
+// Helper function to hash the password
 fn hash_password(password: &str) -> String {
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
-    let password_hash = argon2
-        .hash_password(password.as_bytes(), &salt)
-        .unwrap()
-        .to_string();
-
+    let password_hash = argon2.hash_password(password.as_bytes(), &salt).unwrap().to_string();
     password_hash
 }
 
-// Password verification function
+// Helper function to verify the password
 fn verify_password(hash: &str, password: &str) -> bool {
     let parsed_hash = PasswordHash::new(hash).unwrap();
     let argon2 = Argon2::default();
     argon2.verify_password(password.as_bytes(), &parsed_hash).is_ok()
+}
+
+// Function to load users from file
+fn load_users(file_path: &str) -> HashMap<String, String> {
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(file_path)
+        .expect("Unable to open or create the file");
+
+    let mut data = String::new();
+    file.read_to_string(&mut data).expect("Unable to read file");
+
+    if data.is_empty() {
+        HashMap::new()  // Return an empty map if the file is empty
+    } else {
+        let users: HashMap<String, String> = serde_json::from_str(&data).expect("Invalid JSON format");
+        users
+    }
+}
+
+// Function to save users to file
+fn save_users(file_path: &str, users: &HashMap<String, String>) {
+    let mut file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(file_path)
+        .expect("Unable to open the file for writing");
+
+    let json_data = serde_json::to_string(users).expect("Failed to serialize users");
+    file.write_all(json_data.as_bytes()).expect("Unable to write to the file");
 }
 
 // Signup handler
@@ -44,16 +81,22 @@ async fn signup(data: web::Json<LoginData>, state: web::Data<AppState>) -> impl 
     // Hash the password
     let password_hash = hash_password(&password);
 
-    // Access the shared user store (in-memory for now)
-    let mut users = state.users.lock().unwrap();
+    // Access the file path from state
+    let file_path = state.user_data_file.lock().unwrap();
+
+    // Load current users from the file
+    let mut users = load_users(&file_path);
 
     // Check if the username already exists
     if users.contains_key(&username) {
         return HttpResponse::BadRequest().body("Username already taken");
     }
 
-    // Store the new user with their hashed password
+    // Add the new user
     users.insert(username, password_hash);
+
+    // Save the updated user list to the file
+    save_users(&file_path, &users);
 
     HttpResponse::Ok().body("Signup successful!")
 }
@@ -64,8 +107,11 @@ async fn login(data: web::Json<LoginData>, state: web::Data<AppState>) -> impl R
     let username = data.username.clone();
     let password = data.password.clone();
 
-    // Access the shared user store (in-memory)
-    let users = state.users.lock().unwrap();
+    // Access the file path from state
+    let file_path = state.user_data_file.lock().unwrap();
+
+    // Load users from the file
+    let users = load_users(&file_path);
 
     // Check if the username exists
     if let Some(stored_password_hash) = users.get(&username) {
@@ -82,14 +128,15 @@ async fn login(data: web::Json<LoginData>, state: web::Data<AppState>) -> impl R
 // Main function to start the server
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let users = Mutex::new(HashMap::new()); // In-memory user storage
-    let app_state = web::Data::new(AppState { users });
+    let user_data_file = Mutex::new(String::from("user_data.json"));  // Path to store user data
+
+    let app_state = web::Data::new(AppState { user_data_file });
 
     HttpServer::new(move || {
         App::new()
             .app_data(app_state.clone()) // Share state across requests
+            .service(signup)
             .service(login)
-            .service(signup)             // Register the signup route
     })
     .bind("0.0.0.0:8080")?
     .run()
