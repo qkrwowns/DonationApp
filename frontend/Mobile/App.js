@@ -7,6 +7,9 @@ import HomeScreen from './HomeScreen';
 import ProfileScreen from './ProfileScreen';
 import SelectedDonationScreen from './SelectedDonationScreen';
 import SettingScreen from './SettingScreen';
+import DonationTrackScreen from './DonationTrackScreen';
+import PrivacySetting from './PrivacySetting';
+import DisplaySetting from './DisplaySetting';
 
 const Stack = createStackNavigator();
 
@@ -20,6 +23,9 @@ const App = () => {
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="SelectedDonation" component={SelectedDonationScreen} />
         <Stack.Screen name="Setting" component={SettingScreen} />
+        <Stack.Screen name="DonationTrack" component={DonationTrackScreen} />
+        <Stack.Screen name="Privacy" component={PrivacySetting} />
+        <Stack.Screen name="Display" component={DisplaySetting} />
       </Stack.Navigator>
     </NavigationContainer>
   );

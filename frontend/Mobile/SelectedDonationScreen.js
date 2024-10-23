@@ -4,8 +4,14 @@ import * as Progress from 'react-native-progress';
 
 const oneIcon = require('./images/one.webp');
 const circleIcon = require('./images/circle.png');
+const plusIcon = require('./images/plus.png');
+const profileIcon = require('./images/profile.png');
+const homeIcon = require('./images/home.png');
+const optionIcon = require('./images/option.png');
 
 const SelectedDonationScreen = ({navigation}) => {
+    const percentage = 0.3;
+
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Selected Donation</Text>
@@ -14,10 +20,10 @@ const SelectedDonationScreen = ({navigation}) => {
                 <Image source={oneIcon} style={styles.dIcon}/>
                 <Text style={styles.dDescription}>1 is the unit of counting or measurement, a determiner for singular nouns, and a gender-neutral pronoun. Historically, the representation of 1 evolved from ancient Sumerian and Babylonian symbols to the modern Arabic numeral.</Text>
             </View>
-            <Progress.Bar style={styles.progressBar} progress={0.3} width={390} height={40}/>
+            <Progress.Bar style={styles.progressBar} progress={percentage} width={390} height={40}/>
 
             <Text style={styles.completionText}>This donation is</Text>
-            <Text style={styles.completion}>30%</Text>
+            <Text style={styles.completion}>{percentage*100}%</Text>
             <Text style={styles.completionText}>complete</Text>
 
             <TouchableOpacity>
@@ -47,6 +53,21 @@ const SelectedDonationScreen = ({navigation}) => {
                     <Text style={styles.rDDescription}>abcdefghijklmnop</Text>
                 </TouchableOpacity>
             </ScrollView>
+
+            <View style={styles.bottomContainer}>
+                <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+                    <Image source={homeIcon} style={styles.bottomIcon}/>
+                </TouchableOpacity>
+                <TouchableOpacity>
+                    <Image source={plusIcon} style={styles.bottomIcon}/>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+                    <Image source={profileIcon} style={styles.bottomIcon}/>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.navigate('Setting')}>
+                    <Image source={optionIcon} style={styles.bottomIcon}/>
+                </TouchableOpacity>
+            </View>
         </View>
     )
 }
@@ -121,6 +142,14 @@ const styles = StyleSheet.create({
         marginLeft: 10,
         marginRight: 40,
     },
+    bottomContainer: {
+        display: 'flex',
+        flexDirection: 'row',
+    },
+    bottomIcon: {
+        width:50,
+        height:50,
+    }
 })
 
 export default SelectedDonationScreen;

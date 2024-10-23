@@ -34,14 +34,14 @@ const HomeScreen = ({ navigation }) => {
                 </MenuProvider>
             </View>
 
-            <TouchableOpacity style={styles.dAmount}>
+            <TouchableOpacity style={styles.dAmount} onPress={() => navigation.navigate('DonationTrack')}>
                 <Text style={styles.donated}>You've donated</Text>
                 <Text style={styles.amount}>$0.00</Text>
             </TouchableOpacity>
 
             <Text style={styles.donation}>Your donations</Text>
             <View style={styles.dContainer}>
-                <ScrollView indicatorStyle={styles.dScroll}>
+                <ScrollView indicatorStyle={styles.dScroll} horizontal={true}>
                     <TouchableOpacity style={styles.dTouchable} onPress={() => navigation.navigate('SelectedDonation')}>
                         <Image source={oneIcon} style={styles.dTouchableIcon}/>
                         <Text style={styles.dTouchableDescription}>1 is the unit of counting or measurement, a determiner for singular nouns, and a gender-neutral pronoun. Historically, the representation of 1 evolved from ancient Sumerian and Babylonian symbols to the modern Arabic numeral.</Text>
@@ -59,7 +59,7 @@ const HomeScreen = ({ navigation }) => {
 
             <Text style={styles.donation}>Find new donations</Text>
             <View style={styles.dContainer}>
-                <ScrollView indicatorStyle={styles.dScroll}>
+                <ScrollView indicatorStyle={styles.dScroll} horizontal={true}>
                     <TouchableOpacity style={styles.dTouchable} onPress={() => navigation.navigate('SelectedDonation')}>
                         <Image source={fourIcon} style={styles.dTouchableIcon}/>
                         <Text style={styles.dTouchableDescription}>4 (four) is a number, numeral and digit. It is the natural number following 3 and preceding 5. It is a square number, the smallest semiprime and composite number, and is considered unlucky in many East Asian cultures.</Text>
@@ -76,6 +76,9 @@ const HomeScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.bottomContainer}>
+                <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+                    <Image source={homeIcon} style={styles.bottomIcon}/>
+                </TouchableOpacity>
                 <TouchableOpacity>
                     <Image source={plusIcon} style={styles.bottomIcon}/>
                 </TouchableOpacity>
