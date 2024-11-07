@@ -2,16 +2,20 @@ use actix_web::{web, App, HttpServer, HttpResponse, Responder, post};
 use serde::{Deserialize, Serialize};
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use argon2::password_hash::{SaltString, rand_core::OsRng};
-use std::collections::HashMap;
+use sqlx::mysql::MySqlPool;
 use std::sync::Mutex;
-use std::fs::{OpenOptions, File};
-use std::io::{Read, Write};
-use serde_json::{json, Value};
+use serde_json::json;
+use dotenv::dotenv;
+use std::env;
 
 #[derive(Debug, Deserialize, Serialize)]
 struct UserData {
     username: String,
-    password_hash: String,
+    contact: Option<String>,
+    region: i32,
+    subjects: Option<String>,
+    role: bool,
+    password: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -20,9 +24,8 @@ struct LoginData {
     password: String,
 }
 
-// Shared application state containing user data file path
 struct AppState {
-    user_data_file: Mutex<String>,  // File path for storing users
+    db_pool: MySqlPool,
 }
 
 // Helper function to hash the password
@@ -40,38 +43,6 @@ fn verify_password(hash: &str, password: &str) -> bool {
     argon2.verify_password(password.as_bytes(), &parsed_hash).is_ok()
 }
 
-// Function to load users from file
-fn load_users(file_path: &str) -> HashMap<String, String> {
-    let mut file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .open(file_path)
-        .expect("Unable to open or create the file");
-
-    let mut data = String::new();
-    file.read_to_string(&mut data).expect("Unable to read file");
-
-    if data.is_empty() {
-        HashMap::new()  // Return an empty map if the file is empty
-    } else {
-        let users: HashMap<String, String> = serde_json::from_str(&data).expect("Invalid JSON format");
-        users
-    }
-}
-
-// Function to save users to file
-fn save_users(file_path: &str, users: &HashMap<String, String>) {
-    let mut file = OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .open(file_path)
-        .expect("Unable to open the file for writing");
-
-    let json_data = serde_json::to_string(users).expect("Failed to serialize users");
-    file.write_all(json_data.as_bytes()).expect("Unable to write to the file");
-}
-
 // Signup handler
 #[post("/signup")]
 async fn signup(data: web::Json<LoginData>, state: web::Data<AppState>) -> impl Responder {
@@ -80,44 +51,65 @@ async fn signup(data: web::Json<LoginData>, state: web::Data<AppState>) -> impl 
 
     // Hash the password
     let password_hash = hash_password(&password);
+    let db_pool = &state.db_pool;
 
-    // Access the file path from state
-    let file_path = state.user_data_file.lock().unwrap();
+    let existing_user = sqlx::query!("SELECT username FROM user_info WHERE username = ?", username)
+        .fetch_optional(db_pool)
+        .await
+        .expect("Failed to query user");
 
-    // Load current users from the file
-    let mut users = load_users(&file_path);
-
-    // Check if the username already exists
-    if users.contains_key(&username) {
+    if existing_user.is_some() {
         return HttpResponse::BadRequest().body("Username already taken");
     }
 
-    // Add the new user
-    users.insert(username, password_hash);
-
-    // Save the updated user list to the file
-    save_users(&file_path, &users);
+    // Insert user with default values for non-null columns
+    sqlx::query!(
+        "INSERT INTO user_info (username, contact, region, subjects, role, password_hash) 
+         VALUES (?, '', 0, '', false, ?)",
+        username,
+        password_hash
+    )
+    .execute(db_pool)
+    .await
+    .expect("Failed to insert user");
 
     HttpResponse::Ok().body("Signup successful!")
 }
+
 
 // Login handler
 #[post("/login")]
 async fn login(data: web::Json<LoginData>, state: web::Data<AppState>) -> impl Responder {
     let username = data.username.clone();
     let password = data.password.clone();
+    let db_pool = &state.db_pool;
 
-    // Access the file path from state
-    let file_path = state.user_data_file.lock().unwrap();
+    // Retrieve the user from the database with all fields
+    let user = sqlx::query!(
+        "SELECT password_hash, contact, region, subjects, role FROM user_info WHERE username = ?",
+        username
+    )
+    .fetch_optional(db_pool)
+    .await
+    .expect("Failed to query user");
 
-    // Load users from the file
-    let users = load_users(&file_path);
-
-    // Check if the username exists
-    if let Some(stored_password_hash) = users.get(&username) {
-        if verify_password(stored_password_hash, &password) {
-            return HttpResponse::Ok().body("Login successful!");
+    if let Some(user) = user {
+        // Convert password_hash to &str if it exists, or handle the None case
+        if let Some(stored_hash) = user.password_hash.as_deref() {
+            if verify_password(stored_hash, &password) {
+                let response = json!({
+                    "message": "Login successful!",
+                    "role": user.role,
+                    "region": user.region,
+                    "contact": user.contact,
+                    "subjects": user.subjects,
+                });
+                return HttpResponse::Ok().json(response);
+            } else {
+                return HttpResponse::Unauthorized().body("Invalid password");
+            }
         } else {
+            // Handle the case where password_hash is None (shouldn't happen if data is consistent)
             return HttpResponse::Unauthorized().body("Invalid password");
         }
     } else {
@@ -125,16 +117,61 @@ async fn login(data: web::Json<LoginData>, state: web::Data<AppState>) -> impl R
     }
 }
 
+#[post("/update_user")]
+async fn update_user(data: web::Json<UserData>, state: web::Data<AppState>) -> impl Responder {
+    let username = data.username.clone();
+    let contact = data.contact.clone().unwrap_or_else(|| "".to_string());
+    let region = data.region;
+    let subjects = data.subjects.clone().unwrap_or_else(|| "".to_string());
+    let role = data.role;
+
+    let db_pool = &state.db_pool;
+
+    // Update user data in the database
+    sqlx::query!(
+        "UPDATE user_info SET contact = ?, region = ?, subjects = ?, role = ? WHERE username = ?",
+        contact,
+        region,
+        subjects,
+        role,
+        username
+    )
+    .execute(db_pool)
+    .await
+    .expect("Failed to update user");
+
+    HttpResponse::Ok().body("User information updated successfully!")
+}
+
 // Main function to start the server
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let user_data_file = Mutex::new(String::from("user_data.json"));  // Path to store user data
+    dotenv().ok();  // Load environment variables from .env
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let db_pool = MySqlPool::connect(&database_url)
+        .await
+        .expect("Failed to connect to the database");
 
-    let app_state = web::Data::new(AppState { user_data_file });
+    // Create the `user_info` table if it doesn't exist
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS user_info (
+            username VARCHAR(255) PRIMARY KEY,
+            contact VARCHAR(255),
+            region INT NOT NULL,
+            subjects TEXT,
+            role BOOLEAN NOT NULL,
+            password_hash TEXT NOT NULL
+        )"
+    )
+    .execute(&db_pool)
+    .await
+    .expect("Failed to create user_info table");
+
+    let app_state = web::Data::new(AppState { db_pool });
 
     HttpServer::new(move || {
         App::new()
-            .app_data(app_state.clone()) // Share state across requests
+            .app_data(app_state.clone())
             .service(signup)
             .service(login)
     })
