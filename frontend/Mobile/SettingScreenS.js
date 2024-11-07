@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, ScrollView, } from 'react-native';
 
-const SettingScreen = ({navigation}) => {
+const SettingScreenS = ({navigation}) => {
     return (
         <View style={styles.container}>
             <TouchableOpacity onPress={() => navigation.navigate("Privacy")}>
                 <Text style={styles.setting}>Privacy</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate("Display")}>
-                <Text style={styles.setting}>Display</Text>
-            </TouchableOpacity>
             <TouchableOpacity>
                 <Text style={styles.setting}>About</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('HomeS')}>
+                <Text style={styles.back}>Back</Text>
             </TouchableOpacity>
         </View>
     )
@@ -33,4 +33,4 @@ const styles = StyleSheet.create({
     }
 });
 
-export default SettingScreen
+export default SettingScreenS

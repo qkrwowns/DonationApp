@@ -34,7 +34,7 @@ const LoginScreen = ({ navigation }) => {
 
       if (response.ok) {
         //Alert.alert('Success', 'Login successful');
-        navigation.navigate('Home');  // Navigate to Home on success
+        navigation.navigate('HomeS');  // Navigate to Home on success
       } else {
         const errorMessage = await response.text();
         Alert.alert('Login failed', errorMessage || 'Invalid credentials');
@@ -69,7 +69,7 @@ const LoginScreen = ({ navigation }) => {
         <Text style={styles.buttonText}>Login</Text>
       </TouchableOpacity>
       <Text style={styles.noAccount}>Don't have an account?</Text>
-      <TouchableOpacity onPress={() => navigation.navigate('CreateAccount')}>
+      <TouchableOpacity onPress={() => navigation.navigate('RoleCheck')}>
         <Text style={styles.signUpText}>Sign Up</Text>
       </TouchableOpacity>
     </View>
