@@ -139,28 +139,31 @@ const finish = async() => {
     try {
       // Send signup request to backend
       console.log(getBackendUrl())
-      const response = await fetch(`http://192.168.75.255:8080/signup`, {
+      console.log(userId, cityIndex, password)
+      const response = await fetch(`http://192.168.75.126:8080/signups`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           username: userId,
-          password: password,
           region: cityIndex,
           role: true,
+          password: password,
         }),
       });
-
+      console.log("done")
       // Handle response from the backend
       if (response.ok) {
         Alert.alert('Success', 'Account created successfully!');
-        navigation.navigate('Home');  // Navigate to login screen
+        g
+        navigation.navigate('HomeS');  // Navigate to login screen
       } else {
         const errorMessage = await response.text();
         Alert.alert('Error', errorMessage || 'Failed to create account.');
       }
     } catch (error) {
+      console.log("Error found")
       Alert.alert('Error', 'Failed to connect to the server.');
       console.error('Signup error:', error);
     }

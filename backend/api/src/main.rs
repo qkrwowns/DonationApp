@@ -1,4 +1,4 @@
-use actix_web::{web, App, HttpServer, HttpResponse, Responder, post};
+use actix_web::{web, App, HttpServer, HttpResponse, Responder, post, get};
 use serde::{Deserialize, Serialize};
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use argon2::password_hash::{SaltString, rand_core::OsRng};
@@ -7,6 +7,8 @@ use std::sync::Mutex;
 use serde_json::json;
 use dotenv::dotenv;
 use std::env;
+use std::process::{Command, Stdio};
+use std::io::{self, Write};
 
 #[derive(Debug, Deserialize, Serialize)]
 struct UserData {
@@ -22,6 +24,18 @@ struct UserData {
 struct LoginData {
     username: String,
     password: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct NearData {
+    username: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct FindData {
+    region1: i32,
+    region2: i32,
+    subjects: String,
 }
 
 struct AppState {
@@ -44,9 +58,11 @@ fn verify_password(hash: &str, password: &str) -> bool {
 }
 
 // Signup handler
-#[post("/signup")]
-async fn signup(data: web::Json<LoginData>, state: web::Data<AppState>) -> impl Responder {
+#[post("/signups")]
+async fn signups(data: web::Json<UserData>, state: web::Data<AppState>) -> impl Responder {
     let username = data.username.clone();
+    let region = data.region.clone();
+    let role = data.role.clone();
     let password = data.password.clone();
 
     // Hash the password
@@ -65,9 +81,51 @@ async fn signup(data: web::Json<LoginData>, state: web::Data<AppState>) -> impl 
     // Insert user with default values for non-null columns
     sqlx::query!(
         "INSERT INTO user_info (username, contact, region, subjects, role, password_hash) 
-         VALUES (?, '', 0, '', false, ?)",
+         VALUES (?, '', ?, '', ?, ?)",
         username,
-        password_hash
+        region,
+        role,
+        password
+    )
+    .execute(db_pool)
+    .await
+    .expect("Failed to insert user");
+
+    HttpResponse::Ok().body("Signup successful!")
+}
+
+#[post("/signupt")]
+async fn signupt(data: web::Json<UserData>, state: web::Data<AppState>) -> impl Responder {
+    let username = data.username.clone();
+    let contact = data.contact.clone();
+    let region = data.region.clone();
+    let subjects = data.subjects.clone();
+    let role = data.role.clone();
+    let password = data.password.clone();
+
+    // Hash the password
+    let password_hash = hash_password(&password);
+    let db_pool = &state.db_pool;
+
+    let existing_user = sqlx::query!("SELECT username FROM user_info WHERE username = ?", username)
+        .fetch_optional(db_pool)
+        .await
+        .expect("Failed to query user");
+
+    if existing_user.is_some() {
+        return HttpResponse::BadRequest().body("Username already taken");
+    }
+
+    // Insert user with default values for non-null columns
+    sqlx::query!(
+        "INSERT INTO user_info (username, contact, region, subjects, role, password_hash) 
+         VALUES (?, ?, ?, ?, ?, ?)",
+        username,
+        contact,
+        region,
+        subjects,
+        role,
+        password
     )
     .execute(db_pool)
     .await
@@ -104,7 +162,8 @@ async fn login(data: web::Json<LoginData>, state: web::Data<AppState>) -> impl R
                     "contact": user.contact,
                     "subjects": user.subjects,
                 });
-                return HttpResponse::Ok().json(response);
+                return HttpResponse::Ok().json(response);use std::process::{Command, Stdio};
+                use std::io::{self, Write};
             } else {
                 return HttpResponse::Unauthorized().body("Invalid password");
             }
@@ -121,7 +180,7 @@ async fn login(data: web::Json<LoginData>, state: web::Data<AppState>) -> impl R
 async fn update_user(data: web::Json<UserData>, state: web::Data<AppState>) -> impl Responder {
     let username = data.username.clone();
     let contact = data.contact.clone().unwrap_or_else(|| "".to_string());
-    let region = data.region;
+    let region = data.region.clone();
     let subjects = data.subjects.clone().unwrap_or_else(|| "".to_string());
     let role = data.role;
 
@@ -142,6 +201,38 @@ async fn update_user(data: web::Json<UserData>, state: web::Data<AppState>) -> i
 
     HttpResponse::Ok().body("User information updated successfully!")
 }
+
+#[get("/near")]
+async fn nearRegion(data: web::Json<NearData>, state: web::Data<AppState>) -> impl Responder {
+    let username = data.username.clone();
+
+    let region_result = sqlx::query!(
+        "SELECT region FROM user_info WHERE username = ?",
+        username
+    )
+    .fetch_one(&state.db_pool)
+    .await;
+    
+    let regionc: i32 = match region_result {
+        Ok(record) => record.region,
+        Err(_) => return HttpResponse::InternalServerError().body("Error retrieving user data"),
+    };
+
+    // Run the C++ executable with `region` as an argument
+    let output = Command::new("./nearRegion") // Path to the C++ executable
+        .arg(regionc.to_string()) // Pass `region` as an argument
+        .output(); // Capture the output
+
+    match output {
+        Ok(output) => {
+            let cpp_output = String::from_utf8_lossy(&output.stdout);
+            return HttpResponse::Ok().body(format!("{}", cpp_output))
+        }
+        Err(_) => HttpResponse::InternalServerError().body("Error running C++ program"),
+    }
+}
+
+
 
 // Main function to start the server
 #[actix_web::main]
@@ -172,8 +263,11 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(app_state.clone())
-            .service(signup)
+            .service(signups)
+            .service(signupt)
             .service(login)
+            .service(update_user)
+            .service(nearRegion)
     })
     .bind("0.0.0.0:8080")?
     .run()

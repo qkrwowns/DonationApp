@@ -106,6 +106,7 @@ const CreateAccountScreenT = ({ navigation }) => {
     ];
 
     const [city, setCity] = useState();
+    const [cityIndex, setCityIndex] = useState();
 
     const finish = async() => {
         if (!city) {
@@ -131,11 +132,14 @@ const CreateAccountScreenT = ({ navigation }) => {
     }, []);
     
     const [selectedSubject, setSelectedSubject] = useState()
+
+    const [subjects, setSubjects] = useState()
     
     const addSubject = async() => {
         subjectCnt[selectedSubject]+=1
         if(subjectCnt[selectedSubject]==1){
             addedSubject.push(subjectList[selectedSubject].title)
+            setSubjects(subjects+"/"+subjectList[selectedSubject].title)
         }
         onRefresh()
     }
@@ -166,55 +170,67 @@ const CreateAccountScreenT = ({ navigation }) => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
-    // Dynamic backend URL depending on platform and environment
-    const getBackendUrl = () => {
-        if (Platform.OS === 'ios') {
-        return 'http://192.168.75.126:8080';  // IP for local backend
-        } else {
-        return 'http://192.168.75.126:8080';   // Change this for Android as needed
-        }
-    };
+      // Dynamic backend URL depending on platform and environment
+  const getBackendUrl = () => {
+    if (Platform.OS === 'ios') {
+      return 'http://192.168.75.255:8080';  // IP for local backend
+    } else {
+      return 'http://192.168.75.255:8080';   // Change this for Android as needed
+    }
+  };
 
-    // Handle account creation
-    const handleCreateAccount = async () => {
-        // Check if all fields are filled
-        if (!userId || !password || !confirmPassword) {
-        Alert.alert('Error', 'All fields are required.');
-        return;
-        }
+  // Handle account creation
+  const handleCreateAccount = async () => {
+    // Check if all fields are filled
+    if (!userId || !password || !confirmPassword) {
+      Alert.alert('Error', 'All fields are required.');
+      return;
+    }
 
-        // Check if passwords match
-        if (password !== confirmPassword) {
-        Alert.alert('Error', 'Passwords do not match.');
-        return;
-        }
+    // Check if passwords match
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match.');
+      return;
+    }
 
-        try {
-        // Send signup request to backend
-        const response = await fetch(`${getBackendUrl()}/signup`, {
-            method: 'POST',
-            headers: {
-            'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-            username: userId,
-            password: password,
-            }),
-        });
+    if(!city) {
+      Alert.alert('Error', 'Please fill out all fields.');
+      return;
+    }
 
-        // Handle response from the backend
-        if (response.ok) {
-            Alert.alert('Success', 'Account created successfully!');
-            navigation.navigate('RoleCheck');  // Navigate to login screen
-        } else {
-            const errorMessage = await response.text();
-            Alert.alert('Error', errorMessage || 'Failed to create account.');
-        }
-        } catch (error) {
-        Alert.alert('Error', 'Failed to connect to the server.');
-        console.error('Signup error:', error);
-        }
-    };
+    try {
+      // Send signup request to backend
+      console.log(getBackendUrl())
+      console.log(userId, phoneNumber, cityIndex, subjects, password)
+      const response = await fetch(`http://192.168.75.126:8080/signupt`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: userId,
+          contact: phoneNumber,
+          region: cityIndex,
+          subjects: subjects,
+          role: true,
+          password: password,
+        }),
+      });
+      console.log("done")
+      // Handle response from the backend
+      if (response.ok) {
+        Alert.alert('Success', 'Account created successfully!');
+        navigation.navigate('HomeS');  // Navigate to login screen
+      } else {
+        const errorMessage = await response.text();
+        Alert.alert('Error', errorMessage || 'Failed to create account.');
+      }
+    } catch (error) {
+      console.log("Error found")
+      Alert.alert('Error', 'Failed to connect to the server.');
+      console.error('Signup error:', error);
+    }
+  };
 
     return (
         <View style={styles.container}>
@@ -294,6 +310,7 @@ const CreateAccountScreenT = ({ navigation }) => {
             data={cityList}
             onSelect={(selectedItem, index) => {
                 setCity(selectedItem)
+                setCityIndex(index)
             }}
             search={true}
             renderButton={(selectedItem,) => {

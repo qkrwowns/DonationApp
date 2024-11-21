@@ -23,6 +23,7 @@ import NotificationScreenT from './NotificationScreenT';
 const Stack = createStackNavigator();
 
 const App = () => {
+
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Login">

@@ -6,7 +6,8 @@
       }
     },
     "ios": {
-      "bundleIdentifier": "com.wowns.donationapp"
+      "bundleIdentifier": "com.wowns.donationapp",
+      "newArchEnabled": "True"
     }
   }
 }

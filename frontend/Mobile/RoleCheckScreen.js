@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, ScrollView, Touchable, Modal, Alert} from 'react-native';
+import { useGlobal } from './GlobalProvider';
 
 const profileIcon = require('./images/profile.png');
 
@@ -8,6 +9,7 @@ const RoleCheckScreen = ({ navigation }) => {
     const [oColor, setOColor] = useState('#F0F2F5');
     const [role, setRole] = useState();
 
+//
     educatorSelect = async () => {
         setColor('#E0E0E0');
         setOColor('#F0F2F5')

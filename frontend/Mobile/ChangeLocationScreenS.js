@@ -92,13 +92,37 @@ const ChangeLocationScreen = ({ navigation }) => {
     ];
 
     const [city, setCity] = useState();
+    const [cityIndex, setCityIndex] = useState();
 
     const finish = async() => {
         if (!city) {
             Alert.alert('Error', 'please select a city')
         }
         else {
-            navigation.navigate('HomeS')
+            try {
+                // Send signup request to backend
+                const response = await fetch(`http://192.168.75.126:8080/update_user`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    region: cityIndex,
+                  }),
+                });
+                console.log("done")
+                // Handle response from the backend
+                if (response.ok) {
+                  navigation.navigate('HomeS');  // Navigate to login screen
+                } else {
+                  const errorMessage = await response.text();
+                  Alert.alert('Error', errorMessage || 'Failed to update region.');
+                }
+              } catch (error) {
+                console.log("Error found")
+                Alert.alert('Error', 'Failed to connect to the server.');
+                console.error('Update error:', error);
+              }
         }
     }
 
@@ -109,6 +133,7 @@ const ChangeLocationScreen = ({ navigation }) => {
                 data={cityList}
                 onSelect={(selectedItem, index) => {
                     setCity(selectedItem)
+                    setCityIndex(index)
                 }}
                 search={true}
                 renderButton={(selectedItem,) => {
