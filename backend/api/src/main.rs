@@ -232,7 +232,61 @@ async fn nearRegion(data: web::Json<NearData>, state: web::Data<AppState>) -> im
     }
 }
 
+#[derive(Serialize, sqlx::FromRow)]
+struct regionUser {
+    username: String,
+    subjects: String
+}
 
+#[get("/find")]
+async fn findUser(data: web::Json<FindData>, state: web::Data<AppState>) -> impl Responder {
+    let region1 = data.region1.clone();
+    let req_subjects = data.subjects.clone();
+
+    // Fetch all rows matching the condition
+    let results = sqlx::query_as::<_, regionUser>(
+        "SELECT username, subjects FROM user_info WHERE region = ? AND role = 1"
+    )
+    .bind(&region1)
+    .fetch_all(&state.db_pool)
+    .await;
+
+    // Handle database errors or no results
+    let user_data = match results {
+        Ok(res) => res,
+        Err(_) => {
+            return HttpResponse::InternalServerError().body("Database query failed");
+        }
+    };
+
+    if user_data.is_empty() {
+        return HttpResponse::NotFound().body("No users found");
+    }
+
+    // Prepare data for C++ program
+    let formatted_data: Vec<String> = user_data
+        .into_iter()
+        .map(|user| format!("{}:{}", user.username, user.subjects)) // Combine username and subjects
+        .collect();
+    
+    // Join data into a single string, separating rows by a newline
+    let data_to_send = formatted_data.join("\n");
+
+    // Pass the data to the C++ program
+    let output = Command::new("./nearUser")
+        .arg(req_subjects) // Requested subjects
+        .arg(data_to_send) // All user data
+        .output();
+
+    // Handle C++ program execution
+    match output {
+        Ok(output) => {
+            let cpp_output = String::from_utf8_lossy(&output.stdout);
+            HttpResponse::Ok().body(format!("{}", cpp_output))
+        }
+        Err(_) => HttpResponse::InternalServerError().body("Error running C++ program"),
+    }
+}
 
 // Main function to start the server
 #[actix_web::main]
@@ -268,6 +322,7 @@ async fn main() -> std::io::Result<()> {
             .service(login)
             .service(update_user)
             .service(nearRegion)
+            .service(findUser)
     })
     .bind("0.0.0.0:8080")?
     .run()
