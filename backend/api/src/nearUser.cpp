@@ -35,9 +35,7 @@ int main(int argc, char* argv[]) {
 
             // Simulate subject matching logic
             if (subjects.find(reqSubjects) !=  string::npos) {
-                cout << "  -> Matches requested subjects!" <<  endl;
-            } else {
-                cout << "  -> Does not match requested subjects." <<  endl;
+                cout << username <<  endl;
             }
         }
     }

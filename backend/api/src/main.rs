@@ -241,13 +241,15 @@ struct regionUser {
 #[get("/find")]
 async fn findUser(data: web::Json<FindData>, state: web::Data<AppState>) -> impl Responder {
     let region1 = data.region1.clone();
+    let region2 = data.region2.clone();
     let req_subjects = data.subjects.clone();
 
     // Fetch all rows matching the condition
     let results = sqlx::query_as::<_, regionUser>(
-        "SELECT username, subjects FROM user_info WHERE region = ? AND role = 1"
+        "SELECT username, subjects FROM user_info WHERE (region = ? OR region = ?) AND role = 1"
     )
     .bind(&region1)
+    .bind(&region2)
     .fetch_all(&state.db_pool)
     .await;
 
