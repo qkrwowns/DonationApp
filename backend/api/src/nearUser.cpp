@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Process each user
-     cout << "Requested Subjects: " << reqSubjects <<  '\n';
+    //cout << "Requested Subjects: " << reqSubjects <<  '\n';
     for (const auto& user : users) {
         // Split "username:subjects" into parts
         size_t pos = user.find(':');
@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
              string username = user.substr(0, pos);
              string subjects = user.substr(pos + 1);
 
-            cout << "User: " << username << ", Subjects: " << subjects <<  '\n';
+            //cout << "User: " << username << ", Subjects: " << subjects <<  '\n';
 
             // Simulate subject matching logic
             if (subjects.find(reqSubjects) !=  string::npos) {

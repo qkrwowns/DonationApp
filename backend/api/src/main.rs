@@ -38,6 +38,16 @@ struct FindData {
     subjects: String,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+struct ContactData {
+    pub usernames: Vec<String>
+}
+
+#[derive(Debug, Deserialize)]
+struct NotifyData {
+    message: String
+}
+
 struct AppState {
     db_pool: MySqlPool,
 }
@@ -203,7 +213,7 @@ async fn update_user(data: web::Json<UserData>, state: web::Data<AppState>) -> i
 }
 
 #[get("/near")]
-async fn nearRegion(data: web::Json<NearData>, state: web::Data<AppState>) -> impl Responder {
+async fn near_region(data: web::Json<NearData>, state: web::Data<AppState>) -> impl Responder {
     let username = data.username.clone();
 
     let region_result = sqlx::query!(
@@ -239,7 +249,7 @@ struct regionUser {
 }
 
 #[get("/find")]
-async fn findUser(data: web::Json<FindData>, state: web::Data<AppState>) -> impl Responder {
+async fn find_user(data: web::Json<FindData>, state: web::Data<AppState>) -> impl Responder {
     let region1 = data.region1.clone();
     let region2 = data.region2.clone();
     let req_subjects = data.subjects.clone();
@@ -290,6 +300,56 @@ async fn findUser(data: web::Json<FindData>, state: web::Data<AppState>) -> impl
     }
 }
 
+#[derive(Serialize, sqlx::FromRow)]
+struct ReturnContact {
+    username: String,
+    contact: String
+}
+
+#[get("/contacts")]
+async fn bring_contact(data: web::Json<ContactData>, state: web::Data<AppState>) -> impl Responder {
+    let usernames = &data.usernames;
+
+    // Early return if the input array is empty
+    if usernames.is_empty() {
+        return HttpResponse::BadRequest().body("No usernames provided");
+    }
+
+    // Construct the SQL query dynamically
+    let placeholders = usernames
+        .iter()
+        .map(|_| "?") // Generate `?` for each username
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let query = format!(
+        "SELECT username, contact FROM user_info WHERE username IN ({})",
+        placeholders
+    );
+
+    let mut sql_query = sqlx::query_as::<_, ReturnContact>(&query);
+    for username in usernames {
+        sql_query = sql_query.bind(username)
+    };
+
+    // Execute the SQL query
+    let result = sql_query.fetch_all(&state.db_pool).await;
+
+    // Handle query results
+    match result {
+        Ok(contacts) => {
+            if (contacts.is_empty()) {
+                HttpResponse::NotFound().body("Empty Contact")
+            }
+            else {
+                HttpResponse::Ok().json(contacts)
+            }
+        }
+        Err(_) => HttpResponse::InternalServerError().body("Failed to fetch contacts"),
+    }
+}
+
+
 // Main function to start the server
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -323,8 +383,9 @@ async fn main() -> std::io::Result<()> {
             .service(signupt)
             .service(login)
             .service(update_user)
-            .service(nearRegion)
-            .service(findUser)
+            .service(near_region)
+            .service(find_user)
+            .service(bring_contact)
     })
     .bind("0.0.0.0:8080")?
     .run()
